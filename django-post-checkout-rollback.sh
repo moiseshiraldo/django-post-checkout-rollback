@@ -23,17 +23,17 @@ if [ $NEW_BRANCH == $OLD_BRANCH ] || [ -n "$SKIP_POST_ROLLBACK" ]; then
 fi
 
 if [ $IS_BRANCH_CHANGE -eq 1 ]; then
-    migrations="$(python -Wi manage.py showmigrations)"
-    # Exit if we could not get migrations
-    if [ $? -ne 0 ]; then
-        exit 1
-    fi
     declare -A current_migrations
     new_branch="$(git rev-parse --abbrev-ref HEAD)"
     
     # Checkout master branch
     if [ -n "$MASTER_BRANCH" ] && [ "$new_branch" != "$MASTER_BRANCH" ]; then
         SKIP_POST_ROLLBACK=1 git checkout -q $MASTER_BRANCH
+    fi
+    migrations="$(python -Wi manage.py showmigrations)"
+    # Exit if we could not get migrations
+    if [ $? -ne 0 ]; then
+        exit 1
     fi
     
     # Get last migration on current branch for every app
@@ -44,8 +44,10 @@ if [ $IS_BRANCH_CHANGE -eq 1 ]; then
             last_migration=${array[1]:0:4}
         elif [ "${array[0]}" == "[" ]; then
             continue
+        elif [ "${array[0]}" == "(no" ]; then
+            continue
         else
-            if [-v app]; then
+            if [ -v app ]; then
                 current_migrations[$app]=$last_migration
                 last_migration="0000"
             fi
@@ -70,8 +72,10 @@ if [ $IS_BRANCH_CHANGE -eq 1 ]; then
             last_migration=${array[1]:0:4}
         elif [ "${array[0]}" == "[" ]; then
             continue
+        elif [ "${array[0]}" == "(no" ]; then
+            continue
         else
-            if [-v app]; then
+            if [ -v app ]; then
                 rollback
                 last_migration="0000"
             fi

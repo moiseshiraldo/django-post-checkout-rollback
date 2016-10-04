@@ -23,17 +23,17 @@ if [ $NEW_BRANCH == $OLD_BRANCH ] || [ -n "$SKIP_POST_ROLLBACK" ]; then
 fi
 
 if [ $IS_BRANCH_CHANGE -eq 1 ]; then
-    migrations="$(python -Wi manage.py migrate --list)"
-    # Exit if we could not get migrations
-    if [ $? -ne 0 ]; then
-        exit 1
-    fi
     declare -A current_migrations
     new_branch="$(git rev-parse --abbrev-ref HEAD)"
     
     # Checkout master branch
     if [ -n "$MASTER_BRANCH" ] && [ "$new_branch" != "$MASTER_BRANCH" ]; then
         SKIP_POST_ROLLBACK=1 git checkout -q $MASTER_BRANCH
+    fi
+    migrations="$(python -Wi manage.py migrate --list)"
+    # Exit if we could not get migrations
+    if [ $? -ne 0 ]; then
+        exit 1
     fi
     
     # Get last migration on current branch for every app
