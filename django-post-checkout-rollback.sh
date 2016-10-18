@@ -22,69 +22,69 @@ if [ $NEW_BRANCH == $OLD_BRANCH ] || [ -n "$SKIP_POST_ROLLBACK" ]; then
     exit 0
 fi
 
-if [ $IS_BRANCH_CHANGE -eq 1 ]; then
-    declare -A current_migrations
-    new_branch="$(git rev-parse --abbrev-ref HEAD)"
-    
-    # Checkout master branch
-    if [ -n "$MASTER_BRANCH" ] && [ "$new_branch" != "$MASTER_BRANCH" ]; then
-        SKIP_POST_ROLLBACK=1 git checkout -q $MASTER_BRANCH
-    fi
-    migrations="$(python -Wi manage.py showmigrations)"
-    # Exit if we could not get migrations
-    if [ $? -ne 0 ]; then
-        exit 1
-    fi
-    
-    # Get last migration on current branch for every app
-    last_migration="0000"
-    while read -r line; do
-        array=( $line )
-        if [ "${array[0]}" == "[X]" ]; then
-            last_migration=${array[1]:0:4}
-        elif [ "${array[0]}" == "[" ]; then
-            continue
-        elif [ "${array[0]}" == "(no" ]; then
-            continue
-        else
-            if [ -v app ]; then
-                current_migrations[$app]=$last_migration
-                last_migration="0000"
-            fi
-            app=${array[0]}
-        fi
-    done <<< "$migrations"
-    current_migrations[$app]=$last_migration
-    
-    # Checkout old branch
-    SKIP_POST_ROLLBACK=1 git checkout -q -b tmp-south-rollback $OLD_BRANCH
-    previous_migrations="$(python -Wi manage.py showmigrations)"
-    if [ $? -ne 0 ]; then
-        exit 1
-    fi
-    unset app
-    
-    # Get old migrations and roll back if necessary
-    last_migration="0000"
-    while read -r line; do
-        array=( $line )
-        if [ "${array[0]}" == "[X]" ]; then
-            last_migration=${array[1]:0:4}
-        elif [ "${array[0]}" == "[" ]; then
-            continue
-        elif [ "${array[0]}" == "(no" ]; then
-            continue
-        else
-            if [ -v app ]; then
-                rollback
-                last_migration="0000"
-            fi
-            app=${array[0]}
-        fi
-    done <<< "$previous_migrations"
-    rollback
-    
-    # Checkout current branch again
-    SKIP_POST_ROLLBACK=1 git checkout -q $new_branch
-    git branch -D -q tmp-south-rollback
+new_branch="$(git rev-parse --abbrev-ref HEAD)"
+if [ $IS_BRANCH_CHANGE -eq 0 ] || [ $new_branch == "HEAD" ]; then
+    exit 0
+fi 
+
+# Checkout master branch
+if [ -n "$MASTER_BRANCH" ] && [ "$new_branch" != "$MASTER_BRANCH" ]; then
+    SKIP_POST_ROLLBACK=1 git checkout -q $MASTER_BRANCH
 fi
+
+declare -A current_migrations
+migrations="$(python -Wi manage.py showmigrations)"
+# Exit if we could not get migrations
+if [ $? -ne 0 ]; then
+    exit 1
+fi
+# Get last migration on current branch for every app
+last_migration="0000"
+while read -r line; do
+    array=( $line )
+    if [ "${array[0]}" == "[X]" ]; then
+        last_migration=${array[1]:0:4}
+    elif [ "${array[0]}" == "[" ]; then
+        continue
+    elif [ "${array[0]}" == "(no" ]; then
+        continue
+    else
+        if [ -v app ]; then
+            current_migrations[$app]=$last_migration
+            last_migration="0000"
+        fi
+        app=${array[0]}
+    fi
+done <<< "$migrations"
+current_migrations[$app]=$last_migration
+
+# Checkout old branch
+SKIP_POST_ROLLBACK=1 git checkout -q -b tmp-south-rollback $OLD_BRANCH
+previous_migrations="$(python -Wi manage.py showmigrations)"
+if [ $? -ne 0 ]; then
+    exit 1
+fi
+# Get old migrations and roll back if necessary
+unset app
+last_migration="0000"
+while read -r line; do
+    array=( $line )
+    if [ "${array[0]}" == "[X]" ]; then
+        last_migration=${array[1]:0:4}
+    elif [ "${array[0]}" == "[" ]; then
+        continue
+    elif [ "${array[0]}" == "(no" ]; then
+        continue
+    else
+        if [ -v app ]; then
+            rollback
+            last_migration="0000"
+        fi
+        app=${array[0]}
+    fi
+done <<< "$previous_migrations"
+rollback
+
+# Checkout current branch again
+SKIP_POST_ROLLBACK=1 git checkout -q $new_branch
+git branch -D -q tmp-south-rollback
