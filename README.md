@@ -9,7 +9,7 @@ Download the `django-post-checkout-rollback.sh` script (or `south-post-checkout-
 ```bash
 #!/bin/sh
 
-$GIT_DIR/hooks/django-post-checkout-rollback "$@"
+$GIT_DIR/hooks/django-post-checkout-rollback.sh "$@"
 ```
 
 Set the `MASTER_BRANCH` variable if you want the script to always roll back migrations to the master branch (recommended).
@@ -20,4 +20,6 @@ If you need to skip the rollback process for a particular checkout, set the `SKI
 
 ## Limitations
 
-*In this house we obey the laws of thermodynamics*. Specially the second one. That means migrations should only move forwards along with the commit history. The script won't work on branches that don't obey this principle (you'll get a warning message). 
+1. *In this house we obey the laws of thermodynamics*. Specially the second one. That means migrations should only move forwards along with the commit history. The script won't work on branches that don't obey this principle (you'll get a warning message).
+
+2. The script will skip the rollback process if it encounters a detached HEAD after the checkout (e.g. a branch rebase or a remote branch checkout).
